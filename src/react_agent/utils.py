@@ -7,6 +7,7 @@ import requests
 import json
 import os
 from typing import Any, Dict, List, Optional, Union
+from langchain_core.language_models import BaseChatModel
 from dotenv import load_dotenv
 
 def get_message_text(msg: BaseMessage) -> str:
@@ -111,10 +112,10 @@ def generate_fake_data_with_openai(yaml_description: dict, num_samples: int = 1,
         
         # Parse response
         generated_text = get_message_text(response)
-        
         # Try to parse as JSON
         try:
             fake_data = json.loads(generated_text)
+            print(fake_data)
             return fake_data
         except json.JSONDecodeError:
             # If not valid JSON, return as text
@@ -129,12 +130,12 @@ def extract_format_from_yaml(yaml_description: dict) -> str:
     """Extract format information from YAML description."""
     format_parts = []
     
-    if 'task_description' in yaml_description:
-        task_desc = yaml_description['task_description']
-    if isinstance(task_desc, dict) and 'description' in task_desc:
-            format_parts.append(f"Task: {task_desc['description']}")
+    #if 'task_description' in yaml_description:
+    #    task_desc = yaml_description['task_description']
+    #   if isinstance(task_desc, dict) and 'description' in task_desc:
+    #        format_parts.append(f"Task: {task_desc['description']}")
     
-    format_parts.append(f"Input Format: {yaml_description['model_information']['input_format']}")
+    format_parts.append(f"{yaml_description['model_information']['input_format']}")
     
     return "\n".join(format_parts)
 
@@ -142,19 +143,8 @@ def extract_format_from_yaml(yaml_description: dict) -> str:
 def create_data_generation_prompt(format_info: str, num_samples: int) -> str:
     """Create a prompt for OpenAI to generate fake data."""
     prompt = f"""
-Based on the following format description, generate {num_samples} realistic fake data samples.
-
-Format Description:
+Create a fake input to fetch to with the following format, return data only:
+input_format:
 {format_info}
-
-Requirements:
-1. Generate exactly {num_samples} samples
-2. Follow the specified format exactly
-3. Use realistic, diverse data values
-4. Return the result as valid JSON
-5. Make sure all required fields are included
-6. Use appropriate data types (strings, numbers, booleans, etc.)
-
-Please return only the JSON data without any additional text or explanation.
 """
     return prompt
