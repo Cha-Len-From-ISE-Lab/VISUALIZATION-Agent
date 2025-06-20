@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Emotion Text Classification UI</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f9f9f9;
+  }
+  h1 {
+    text-align: center;
+  }
+  .section {
+    margin-bottom: 30px;
+  }
+  .list-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+    background: #fff;
+  }
+  .item {
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+  }
+  .item:last-child {
+    border-bottom: none;
+  }
+  .prediction {
+    font-weight: bold;
+    margin-top: 5px;
+  }
+  .probabilities {
+    margin-top: 5px;
+  }
+  .probabilities span {
+    display: inline-block;
+    margin-right: 10px;
+  }
+  .input-section {
+    display: flex;
+    flex-direction: column;
+  }
+  textarea {
+    width: 100%;
+    height: 80px;
+    padding: 10px;
+    font-size: 1em;
+  }
+  button {
+    margin-top: 10px;
+    padding: 10px;
+    font-size: 1em;
+    cursor: pointer;
+  }
+  .prediction-result {
+    margin-top: 20px;
+    padding: 10px;
+    background: #eef;
+    border-radius: 5px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Emotion Text Classification</h1>
+
+<div class="section">
+  <h2>Input Data and Predictions</h2>
+  <div class="list-container" id="prediction-list">
+    <!-- List of input texts and predictions will appear here -->
+  </div>
+</div>
+
+<div class="section">
+  <h2>Enter New Text for Prediction</h2>
+  <div class="input-section">
+    <textarea id="new-input" placeholder="Type your text here..."></textarea>
+    <button onclick="predictNewText()">Predict Emotion</button>
+  </div>
+  <div class="prediction-result" id="new-prediction">
+    <!-- Prediction for new input will appear here -->
+  </div>
+</div>
+
+<script>
+  // Sample data for demonstration
+  const dataItems = [
+    {
+      input_text: "I am so happy today!",
+      predicted_emotion: "joy",
+      emotion_probabilities: {
+        anger: 0.05,
+        disgust: 0.02,
+        fear: 0.03,
+        joy: 0.85,
+        neutral: 0.03,
+        sadness: 0.02,
+        surprise: 0.1
+      },
+      emotion_emoji: "😊"
+    },
+    {
+      input_text: "I can't believe this happened.",
+      predicted_emotion: "surprise",
+      emotion_probabilities: {
+        anger: 0.02,
+        disgust: 0.01,
+        fear: 0.05,
+        joy: 0.1,
+        neutral: 0.2,
+        sadness: 0.02,
+        surprise: 0.6
+      },
+      emotion_emoji: "😮"
+    }
+  ];
+
+  // Function to render the list of data items
+  function renderPredictionList() {
+    const container = document.getElementById('prediction-list');
+    container.innerHTML = '';
+    dataItems.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.innerHTML = `
+        <div><strong>Input Text:</strong> ${item.input_text}</div>
+        <div class="prediction"><strong>Predicted Emotion:</strong> ${item.predicted_emotion} ${item.emotion_emoji}</div>
+        <div class="probabilities"><strong>Probabilities:</strong> ${Object.entries(item.emotion_probabilities).map(([label, score]) => 
+          \`\${label}: \${(score*100).toFixed(1)}%\`).join(', ')}</div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  // Call render on page load
+  renderPredictionList();
+
+  // Function to predict new text
+  async function predictNewText() {
+    const inputText = document.getElementById('new-input').value.trim();
+    if (!inputText) {
+      alert('Please enter some text.');
+      return;
+    }
+    const predictionDiv = document.getElementById('new-prediction');
+    predictionDiv.innerHTML = 'Predicting...';
+
+    // Prepare payload
+    const payload = {
+      texts: inputText
+    };
+
+    try {
+      const response = await fetch('http://34.142.220.207:8000/api/text-classification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+
+      // Find the label with the highest score
+      const sorted = result.sort((a, b) => b.score - a.score);
+      const top = sorted[0];
+
+      // Map label to emoji
+      const emojiMap = {
+        anger: "😠",
+        disgust: "🤢",
+        fear: "😨",
+        joy: "😊",
+        neutral: "😐",
+        sadness: "😢",
+        surprise: "😮"
+      };
+      const emoji = emojiMap[top.label] || '';
+
+      // Display result
+      predictionDiv.innerHTML = `
+        <h3>Prediction Result</h3>
+        <div><strong>Emotion:</strong> ${top.label} ${emoji}</div>
+        <div><strong>Probabilities:</strong> ${result.map(item => 
+          \`\${item.label}: \${(item.score*100).toFixed(1)}%\`).join(', ')}</div>
+      `;
+
+    } catch (error) {
+      console.error('Error:', error);
+      predictionDiv.innerHTML = 'Error occurred during prediction.';
+    }
+  }
+</script>
+
+</body>
+</html>

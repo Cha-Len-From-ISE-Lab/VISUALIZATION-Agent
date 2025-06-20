@@ -1,3 +1,8 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+from src.react_agent import graph
+
 import pytest
 import asyncio
 from langsmith import unit
@@ -114,12 +119,10 @@ dataset_description:
       surprise: Binary label (0 or 1)
 """
 
-@pytest.mark.asyncio
-@unit
-async def test_generate_html_from_yaml() -> None:
+def test_generate_html_from_yaml() -> None:
     user_message = f"Generate the HTML UI for the following task:\n\n```yaml\n{task_yaml}\n```"
 
-    res = await graph.ainvoke(
+    res = graph.invoke(
         {"messages": [("system", system_prompt), ("user", user_message)]},
         {"configurable": {"system_prompt": system_prompt}},
     )
@@ -133,3 +136,4 @@ async def test_generate_html_from_yaml() -> None:
         f.write(html_content)
 
     print("✅ HTML interface has been written to generated_ui.html.")
+test_generate_html_from_yaml()
