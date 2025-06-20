@@ -164,8 +164,8 @@
         body: JSON.stringify(payload)
       });
       const result = await response.json();
-
-      // Find the label with the highest score
+      console.log(reponse);
+      // Find the label with the h  ighest score
       const sorted = result.sort((a, b) => b.score - a.score);
       const top = sorted[0];
 
@@ -198,3 +198,4 @@
 
 </body>
 </html>
+
