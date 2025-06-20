@@ -17,11 +17,36 @@ def get_message_text(msg: BaseMessage) -> str:
         return "".join(txts).strip()
 
 
-def load_chat_model(fully_specified_name: str) -> BaseChatModel:
-    """Load a chat model from a fully specified name.
+import os
+from typing import Any, Dict, List, Optional
+from langchain_core.language_models import BaseChatModel
+from dotenv import load_dotenv
 
-    Args:
-        fully_specified_name (str): String in the format 'provider/model'.
-    """
-    provider, model = fully_specified_name.split("/", maxsplit=1)
-    return init_chat_model(model, model_provider=provider)
+# Load environment variables from .env file
+load_dotenv()
+
+def load_chat_model(model_name: str) -> BaseChatModel:
+    """Load a chat model based on the model name."""
+    provider, model = model_name.split("/", 1)
+    
+    if provider == "openai":
+        from langchain_openai import ChatOpenAI
+        # Explicitly pass the API key from environment variable
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        return ChatOpenAI(model=model, temperature=0, api_key=api_key)
+    elif provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        return ChatAnthropic(model=model, temperature=0, api_key=api_key)
+    # Add other providers as needed
+    
+    raise ValueError(f"Unsupported model provider: {provider}")
+
+def extract_description(yaml):
+    return yaml['task_description']['description']
+
+    

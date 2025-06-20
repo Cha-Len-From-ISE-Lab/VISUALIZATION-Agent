@@ -18,36 +18,26 @@ from react_agent.utils import load_chat_model
 # Define the function that calls the model
 
 
-async def call_model(state: State) -> Dict[str, List[AIMessage]]:
-    """Call the LLM powering our "agent".
-
-    This function prepares the prompt, initializes the model, and processes the response.
-
-    Args:
-        state (State): The current state of the conversation.
-        config (RunnableConfig): Configuration for the model run.
-
-    Returns:
-        dict: A dictionary containing the model's response message.
-    """
+def call_model(state: State) -> Dict[str, List[AIMessage]]:
+    """Call the LLM powering our "agent"."""
     configuration = Configuration.from_context()
-
-    # Initialize the model with tool binding. Change the model or add more tools here.
+    
+    # Initialize the model with tool binding
     model = load_chat_model(configuration.model).bind_tools(TOOLS)
-
-    # Format the system prompt. Customize this to change the agent's behavior.
+    
+    # Format the system prompt
     system_message = configuration.system_prompt.format(
         system_time=datetime.now(tz=UTC).isoformat()
     )
-
-    # Get the model's response
+    
+    # Get the model's response (synchronous version)
     response = cast(
         AIMessage,
-        await model.ainvoke(
+        model.invoke(
             [{"role": "system", "content": system_message}, *state.messages]
         ),
     )
-
+    
     # Handle the case when it's the last step and the model still wants to use a tool
     if state.is_last_step and response.tool_calls:
         return {
@@ -58,10 +48,8 @@ async def call_model(state: State) -> Dict[str, List[AIMessage]]:
                 )
             ]
         }
-
-    # Return the model's response as a list to be added to existing messages
+    
     return {"messages": [response]}
-
 
 # Define a new graph
 
