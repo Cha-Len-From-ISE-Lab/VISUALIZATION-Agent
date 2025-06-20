@@ -41,7 +41,7 @@ def _detect_pre_risk(html_code: str) -> str:
     return _llm(system_prompt, user_message)
 
 
-def _detect_specific_bug(html_code: str, pre_risk: str, project_description: str, api_input_format: str, api_output_example: str) -> str:
+def _detect_specific_bug(html_code: str, pre_risk: str, project_description: str, model_information: str, output_example: str) -> str:
     system_prompt = "You are a senior front-end engineer and code reviewer. Your job is to analyze an HTML file "\
         "that includes inline JavaScript and CSS, focusing especially on the JavaScript logic. "\
         "You are provided with a list of potential issues. Your task is to confirm whether each issue is real, "\
@@ -61,9 +61,10 @@ def _detect_specific_bug(html_code: str, pre_risk: str, project_description: str
         "Return your results as a structured list.\n\n"\
         "### Project Description:\n"\
         f"{project_description}\n\n"\
-        "### Some info of Project:\n"\
-        f"  - API input format: {api_input_format}"\
-        f"  - API output example: {api_output_example}"\
+        "### Information of model (API endpoint):\n"\
+        f"{model_information}"\
+        f"Example output (response) of API (model)\n"\
+        f"{output_example}"\
         "### List of Potential Issues:\n"\
         f"{pre_risk}\n\n"\
         "### Full Code:\n"\
@@ -88,9 +89,9 @@ def _fix_code(html_code: str, specific_bug: str, project_description: str) -> st
     return _llm(system_prompt, user_message)
 
 # Use this function only
-def detect_bug_n_fix(html_code: str, project_description: str, api_input_format: str, api_output_example: str) -> str:
+def detect_bug_n_fix(html_code: str, project_description: str, model_information: str, output_example: str) -> str:
     pre_risk = _detect_pre_risk(html_code)
-    specific_bug = _detect_specific_bug(html_code, pre_risk, project_description, api_input_format, api_output_example)
+    specific_bug = _detect_specific_bug(html_code, pre_risk, project_description, model_information, output_example)
     fixed_code = _fix_code(html_code, specific_bug, project_description)
     if fixed_code.startswith("```html"):
         fixed_code = fixed_code.strip("```html").strip("```").strip()
@@ -99,13 +100,15 @@ def detect_bug_n_fix(html_code: str, project_description: str, api_input_format:
 
 
 if __name__ == "__main__":
+    from yaml_extracter import extract_description, extract_model_info
+    yaml_path = "./_test_extracter/task.yaml"
     with open("./_test_checker/test_html.html", "r", encoding="utf-8") as f:
         code = f.read()
         print(code)
-        project_description = "unknown"
-        api_input_format = "unknown"
-        api_output_example = "unknown"
-        fixed_code = detect_bug_n_fix(code, project_description, api_input_format, api_output_example)
+        project_description = extract_description(yaml_path)
+        model_information = extract_model_info(yaml_path)
+        output_example = "unknown"
+        fixed_code = detect_bug_n_fix(code, project_description, model_information, output_example)
         print(fixed_code)
         with open("./_test_checker/fixed_test_html.html", "w", encoding="utf-8") as f:
             f.write(fixed_code)

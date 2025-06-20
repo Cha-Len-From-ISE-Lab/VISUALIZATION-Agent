@@ -152,7 +152,7 @@
   // Initialize display
   displayPredictions();
 
-  // Function to get prediction from API
+  // Function to get prediction from API with validation
   async function getPrediction(text) {
     const apiUrl = "http://34.142.220.207:8000/api/text-classification";
     try {
@@ -167,12 +167,13 @@
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
-      // Validate that data is an array
-      if (!Array.isArray(data)) {
-        console.error('Unexpected response structure:', data);
+      // Validate response structure
+      if (Array.isArray(data) && data.every(item => 'label' in item && 'score' in item)) {
+        return data;
+      } else {
+        console.error('Unexpected API response structure:', data);
         return null;
       }
-      return data;
     } catch (error) {
       console.error('Error fetching prediction:', error);
       return null;
@@ -182,14 +183,18 @@
   // Handle predict button click
  document.getElementById('predict-btn').addEventListener('click', async () => {
     const text = document.getElementById('new-input-text').value.trim();
+    if (!text) {
+      alert('Please enter some text.');
+      return;
+    }
     const btn = document.getElementById('predict-btn');
-    btn.disabled = true; // Disable button during request
-    const resultDiv = document.getElementById('new-prediction-details');
+    btn.disabled = true; // Disable button to prevent multiple clicks
     document.getElementById('new-input-display').innerText = `Input: ${text}`;
+    const resultDiv = document.getElementById('new-prediction-details');
     resultDiv.innerHTML = 'Predicting...';
 
     const prediction = await getPrediction(text);
-    if (prediction && Array.isArray(prediction) && prediction.length > 0) {
+    if (Array.isArray(prediction) && prediction.length > 0) {
       // Find the label with highest score
       const sorted = prediction.slice().sort((a, b) => b.score - a.score);
       const top = sorted[0];
@@ -199,17 +204,16 @@
       let html = `<p><strong>Predicted Emotion:</strong> ${predictedEmotion} ${emoji}</p>`;
       html += '<div class="emotion-probabilities"><strong>Probabilities:</strong> ';
       prediction.forEach(item => {
-        // Validate item structure
-        if (typeof item.label !== 'string') item.label = '';
-        if (typeof item.score !== 'number') item.score = 0;
-        html += `<span>${item.label}: ${(item.score*100).toFixed(1)}%</span>`;
+        if ('label' in item && 'score' in item) {
+          html += `<span>${item.label}: ${(item.score*100).toFixed(1)}%</span>`;
+        }
       });
       html += '</div>';
       resultDiv.innerHTML = html;
     } else {
       resultDiv.innerHTML = 'Error retrieving prediction.';
     }
-    btn.disabled = false; // Re-enable button after request
+    document.getElementById('predict-btn').disabled = false; // Re-enable button
   });
 </script>
 
