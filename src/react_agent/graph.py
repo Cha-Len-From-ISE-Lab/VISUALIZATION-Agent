@@ -26,9 +26,7 @@ def call_model(state: State) -> Dict[str, List[AIMessage]]:
     model = load_chat_model(configuration.model).bind_tools(TOOLS)
     
     # Format the system prompt
-    system_message = configuration.system_prompt.format(
-        system_time=datetime.now(tz=UTC).isoformat()
-    )
+    system_message = configuration.system_prompt
     
     # Get the model's response (synchronous version)
     response = cast(
