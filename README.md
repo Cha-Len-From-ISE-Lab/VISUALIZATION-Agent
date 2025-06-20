@@ -28,9 +28,9 @@ LoomUI uses a modular pipeline orchestrated by LLMs to generate user interfaces 
 - Workflow Integration: Connects frontend components to backend ML APIs for real-time or batch processing.
 - Validation & Repair: Automated testing and repair ensure the generated UI is functional and accessible.
 
-## Getstart
+## Get Start
 
-## Sample `task.yaml`
+## `task.yaml` Example
 
 ```yaml
 task_description:
@@ -54,6 +54,12 @@ dataset_description:
     - text: string
     - label: string
 ```
+
+## Generated UI Examples
+### Sentiment Classification
+![Sentiment UI](./static/emotion_classification.png)
+### Object Detection
+![Object Detection UI](./static/object_detection.png)
 
 ## License
 
