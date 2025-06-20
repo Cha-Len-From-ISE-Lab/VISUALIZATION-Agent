@@ -41,13 +41,13 @@ def load_chat_model(model_name: str) -> BaseChatModel:
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
-        return ChatOpenAI(model=model, temperature=0, api_key=api_key)
+        return ChatOpenAI(model=model, temperature=1, api_key=api_key)
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-        return ChatAnthropic(model=model, temperature=0, api_key=api_key)
+        return ChatAnthropic(model=model, temperature=1, api_key=api_key)
     # Add other providers as needed
     
     raise ValueError(f"Unsupported model provider: {provider}")
