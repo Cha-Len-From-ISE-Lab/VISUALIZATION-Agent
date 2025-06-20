@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from langchain_core.language_models import BaseChatModel
 from dotenv import load_dotenv
 
-from yaml_extracter import extract_info, extract_model_input
+from .yaml_extracter import extract_info, extract_model_input
 from react_agent import graph
 import requests
 import json
