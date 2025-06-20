@@ -41,7 +41,7 @@ def _detect_pre_risk(html_code: str) -> str:
     return _llm(system_prompt, user_message)
 
 
-def _detect_specific_bug(html_code: str, pre_risk: str, project_description: str, model_information: str, output_example: str) -> str:
+def _detect_specific_bug(html_code: str, pre_risk: str, project_description: str, model_information: str, input_example:str, output_example: str) -> str:
     system_prompt = "You are a senior front-end engineer and code reviewer. Your job is to analyze an HTML file "\
         "that includes inline JavaScript and CSS, focusing especially on the JavaScript logic. "\
         "You are provided with a list of potential issues. Your task is to confirm whether each issue is real, "\
@@ -63,6 +63,8 @@ def _detect_specific_bug(html_code: str, pre_risk: str, project_description: str
         f"{project_description}\n\n"\
         "### Information of model (API endpoint):\n"\
         f"{model_information}"\
+        f"Example input of API (model)\n"\
+        f"{input_example}"\
         f"Example output (response) of API (model)\n"\
         f"{output_example}"\
         "### List of Potential Issues:\n"\
@@ -89,9 +91,9 @@ def _fix_code(html_code: str, specific_bug: str, project_description: str) -> st
     return _llm(system_prompt, user_message)
 
 # Use this function only
-def detect_bug_n_fix(html_code: str, project_description: str, model_information: str, output_example: str) -> str:
+def detect_bug_n_fix(html_code: str, project_description: str, model_information: str, input_example:str, output_example: str) -> str:
     pre_risk = _detect_pre_risk(html_code)
-    specific_bug = _detect_specific_bug(html_code, pre_risk, project_description, model_information, output_example)
+    specific_bug = _detect_specific_bug(html_code, pre_risk, project_description, model_information, input_example, output_example)
     fixed_code = _fix_code(html_code, specific_bug, project_description)
     if fixed_code.startswith("```html"):
         fixed_code = fixed_code.strip("```html").strip("```").strip()

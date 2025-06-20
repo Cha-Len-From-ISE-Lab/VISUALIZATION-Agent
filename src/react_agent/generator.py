@@ -11,6 +11,7 @@ from checker import detect_bug_n_fix
 import yaml
 from src.react_agent.utils import get_model_output
 import requests
+from yaml_extracter import *
 
 def receptionist_agent(task: str):
     system_prompt = """
@@ -32,18 +33,23 @@ These specifications will be passed to specialized code-generation agents to cre
     user_prompt = f'''
 Below is a `task.yaml` file that defines the task. Please analyze it and generate the UI specification as instructed.
 {task}
+
 Your response must contain three sections:
 
 ### HTML_SPEC
 Describe the required layout and elements. Be clear about what each part of the interface is for, what inputs are needed, and how users interact with the interface.
 
+**Make sure to include a dedicated section or area in the layout for displaying the history of user queries and model responses. This history panel should allow users to review past interactions within the session.**
+
 ### CSS_SPEC
 Describe the styling of each UI component. Consider layout, spacing, colors, fonts, hover/focus states, and responsiveness.
 
 ### JS_SPEC
-Describe the logic needed to handle user input, communicate with the model (API calls or local inference), process responses, and update the interface accordingly.
+Describe the logic needed to handle user input, communicate with the model (API calls or local inference), process responses, and update the interface accordingly. 
+Also describe how the query history should be updated dynamically with each new interaction.
 '''
     return system_prompt, user_prompt
+
 
 
 def html_generator_agent(html_spec: str) -> str:
@@ -183,7 +189,7 @@ def extract_project_info_from_task_info(task_info: str):
         api_output_example = str(output_format)
     return project_description, api_input_format, api_output_example
 
-def generate_fe(task_path) -> None:
+def generate_fe(task_path:str) -> None:
     with open(task_path, 'r', encoding='utf-8') as f:
         task_info = yaml.safe_load(f)
     
@@ -230,9 +236,10 @@ def generate_fe(task_path) -> None:
         f.write(final_html)
     print("Saved to file tests/integration_tests/generated_ui.html")
 
-    project_description, api_input_format, api_output_example = extract_project_info_from_task_info(task_info)
+    project_description = extract_description(task_path)
+    model_information = extract_model_info(task_path)
     
-    fixed_code = detect_bug_n_fix(final_html, project_description, api_input_format, api_output_example)
+    fixed_code = detect_bug_n_fix(final_html, project_description, model_information, input_example, output_example)
     
     with open("tests/integration_tests/fixed_generated_ui.html", "w", encoding="utf-8") as f:
         f.write(fixed_code)
