@@ -3,11 +3,17 @@
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
-import requests
+
 import json
 import os
 from typing import Any, Dict, List, Optional, Union
 from dotenv import load_dotenv
+
+from yaml_extracter import extract_info, extract_model_input
+from react_agent import graph
+import requests
+import json
+
 
 def get_message_text(msg: BaseMessage) -> str:
     """Get the text content of a message."""
@@ -49,38 +55,38 @@ def extract_description(yaml):
     return yaml['task_description']['description']
 
 
-def get_model_output(api_url, yaml_description=None):
-    """
-    Get data from API and process it with task model.
+# def get_model_output(api_url, yaml_description=None):
+#     """
+#     Get data from API and process it with task model.
     
-    Args:
-        api_url: API endpoint URL
-        input_data: Data to send to API
-        yaml_description: YAML description for generating fake data if API fails
+#     Args:
+#         api_url: API endpoint URL
+#         input_data: Data to send to API
+#         yaml_description: YAML description for generating fake data if API fails
         
-    Returns:
-        Processed output from the task model
-    """
-    try:
-        # If we have YAML description, use it to generate additional fake data
-        if yaml_description:
-            fake_data = generate_fake_data_with_openai(yaml_description)
-            response = requests.post(api_url, json=fake_data)          
+#     Returns:
+#         Processed output from the task model
+#     """
+#     try:
+#         # If we have YAML description, use it to generate additional fake data
+#         if yaml_description:
+#             fake_data = generate_fake_data_with_openai(yaml_description)
+#             response = requests.post(api_url, json=fake_data)          
         
-        response.raise_for_status()
-        api_data = response.json()
+#         response.raise_for_status()
+#         api_data = response.json()
 
-        return api_data
+#         return api_data
         
-    except requests.exceptions.RequestException as e:
-        print(f"Error making request to {api_url}: {e}")
+#     except requests.exceptions.RequestException as e:
+#         print(f"Error making request to {api_url}: {e}")
         
-        # If API fails and we have YAML description, generate fake data as fallback
-        if yaml_description:
-            print("Falling back to generating fake data...")
-            return generate_fake_data_with_openai(yaml_description)
+#         # If API fails and we have YAML description, generate fake data as fallback
+#         if yaml_description:
+#             print("Falling back to generating fake data...")
+#             return generate_fake_data_with_openai(yaml_description)
         
-        return {"error": str(e)}
+#         return {"error": str(e)}
 
 def generate_fake_data_with_openai(yaml_description: dict, num_samples: int = 1, model_name: str = "openai/gpt-4.1-nano-2025-04-14") -> Union[dict, list]:
     """
@@ -158,3 +164,49 @@ Requirements:
 Please return only the JSON data without any additional text or explanation.
 """
     return prompt
+
+
+
+
+def get_model_output(yaml_file_path: str):
+    """
+        - return: input: str, output: str, ("ERROR - UNKNOWN", "ERROR - UNKNOWN") if error
+    """
+    sys_prt = "You are a JSON input generator for machine learning APIs. You will receive an `input_format` specification describing " \
+        "the expected structure of a JSON input."\
+        "Your job is to generate a valid sample JSON input based on the given format."\
+        "Guidelines:"\
+        "- Only return the JSON input. Do not include explanations or descriptions."\
+        "- Fill in realistic and coherent dummy data for each field, based on field names and types."\
+        "- Always match the required structure and types exactly."\
+        "- Return JSON in compact format (single-line, no comments, no code-style string concatenation)."\
+        "Never repeat the schema or format. Only output the resulting JSON input."
+    
+    user_prompt = "Based on the following input_format schema, generate a valid JSON input:"\
+        f"{extract_model_input(yaml_file_path)}"
+    
+    res = graph.invoke(
+        {"messages": [("system", sys_prt), ("user", user_prompt)]},
+        {"configurable": {"system_prompt": sys_prt}},
+    )
+
+    api = extract_info("model_information.api_url", yaml_file_path)
+
+    json_str_res = str(res["messages"][-1].content).strip()
+
+    payload = json.loads(json_str_res)
+
+    response = requests.post(api, json=payload)
+
+    if response.status_code == 200:
+        return json_str_res, json.dumps(response.json()) # input, output
+    
+    print(api, json_str_res, response.status_code)
+        
+    return "ERROR - UNKNOWN", "ERROR - UNKNOWN"
+
+
+if __name__ == "__main__":
+    print(get_model_output('task (4).yaml'))
+
+
