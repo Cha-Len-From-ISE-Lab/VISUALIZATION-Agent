@@ -13,23 +13,57 @@ from src.react_agent.utils import get_model_output
 import requests
 from yaml_extracter import *
 
-def receptionist_agent(task: str):
+def specification_agent(task: str):
     system_prompt = """
-You are an expert in both AI Engineering and UI/UX Design. You are assisting in a UI auto-generation competition.
-The goal of the competition is to develop a system that can automatically generate interactive user interfaces (UIs) from given task specifications. Each task comes in a `task.yaml` file, describing the goal, model, input/output data, and user interaction requirements.
+You are an expert in AI Engineering and UI/UX Design, assisting in a UI auto-generation competition.
 
-Your job is to analyze the task and generate a **UI specification** that clearly defines:
-1. What should be included in the HTML structure (elements like forms, buttons, sections for model output, file upload areas, etc.).
-2. What kind of CSS styling is necessary to make the interface intuitive, usable, and visually pleasant.
-3. What JavaScript logic is needed to make the interface interactive (such as handling input, calling the model API, rendering model results, etc.).
+Each task comes with a `task.yaml` file describing the problem type, expected input/output formats, model APIs, interaction requirements, and sometimes data visualization needs.
 
-The output must be three clear and separate sections: 
-- HTML_SPEC
-- CSS_SPEC
-- JS_SPEC
+Your goal is to analyze this task definition and generate a comprehensive UI specification that will be used to guide interface generation. Your output must include the following three sections:
 
-These specifications will be passed to specialized code-generation agents to create the actual UI files. So be precise, and do not include actual code—only descriptions of structure, styling intent, and logic behavior.
+### 1. HTML_SPEC
+Describe the structure of the interface, broken down into clearly defined functional areas. These may include (but are not limited to):
+- **Unit Processing Area**: for single-instance input, prediction, and result visualization
+- **Batch Processing Area**: for file upload, batch execution, and result display
+- **Data Visualization Area**: for rendering input tables, highlighting predictions, showing annotations, or reviewing answers
+- **Instructional or Output Summary Panel**: for additional interpretation or summarization
+- **History or Query Review Area**: for maintaining prior queries or interactions
+
+These sections should be determined based on the specific requirements of the task, such as:
+- Input/output format (text, image, table, JSON)
+- Interaction modality (single-step vs multi-step)
+- Visualization instructions (e.g., cell highlighting, answer coordinates)
+- Model capabilities and API structure
+
+For each area, describe:
+- Required inputs
+- Output or display elements
+- Layout arrangement (e.g., side-by-side, vertical stack)
+- Logical grouping of elements
+
+### 2. CSS_SPEC
+Describe the intended appearance and layout style, including:
+- Spacing, alignment, and content grouping
+- Visual separation between functional sections
+- Responsive design (mobile/desktop)
+- Color palette usage (choose one consistent Tailwind color family)
+- Readability and accessibility guidelines (contrast, font size, hover/focus states)
+- Avoiding components shrinking to fit their content only; use `min-w-`, `min-h-`, `w-full`, `h-64`, etc. where appropriate.
+
+### 3. JS_SPEC
+Describe the interactive behaviors, including:
+- Input handling (form input, file uploads, validations)
+- Data transformation logic (e.g., parsing TSV, mapping table coordinates)
+- API interaction (fetch calls, error handling, state updates)
+- Dynamic rendering (e.g., updating DOM with results, drawing highlight overlays)
+- Optional features such as:
+    - History saving/loading (via localStorage or in-memory)
+    - Visualization overlays (e.g., coloring cells)
+    - Pagination or scroll areas for long batch outputs
+
+Use abstract description only—no code should be included. Your specification must adapt to the task’s data type, interaction complexity, and visualization needs.
 """
+
     user_prompt = f'''
 Below is a `task.yaml` file that defines the task. Please analyze it and generate the UI specification as instructed.
 {task}
@@ -37,22 +71,57 @@ Below is a `task.yaml` file that defines the task. Please analyze it and generat
 Your response must contain three sections:
 
 ### HTML_SPEC
-Describe the required layout and elements. Be clear about what each part of the interface is for, what inputs are needed, and how users interact with the interface.
-
-**Make sure to include a dedicated section or area in the layout for displaying the history of user queries and model responses. This history panel should allow users to review past interactions within the session.**
+Clearly describe the full interface structure, broken into logical sections that match the nature of the task. Each section must include inputs, outputs, layout intentions, and their role.
 
 ### CSS_SPEC
-Describe the styling of each UI component. Consider layout, spacing, colors, fonts, hover/focus states, and responsiveness.
+Describe the visual design choices for the layout, spacing, contrast, responsiveness, and theme consistency.
 
 ### JS_SPEC
-Describe the logic needed to handle user input, communicate with the model (API calls or local inference), process responses, and update the interface accordingly. 
-Also describe how the query history should be updated dynamically with each new interaction.
+Describe the functional logic that connects user input with backend inference and updates the display dynamically. Include batch handling, parsing, validation, and visualization logic if needed.
 '''
     return system_prompt, user_prompt
 
 
 
-def html_generator_agent(html_spec: str) -> str:
+
+def design_agent(html_spec: str, css_spec: str, js_spec: str) -> tuple[str, str]:
+    system_prompt = """
+You are a Senior UI/UX Architect.
+
+Your role is to take UI specifications—including HTML layout description, CSS styling intent, and JavaScript behavior—and synthesize them into a **comprehensive high-level design plan**.
+
+This design plan should reflect the structure and flow of the user interface, without going into low-level code. Think of it as the output of the "Design" phase in the Waterfall model.
+
+The design must include:
+
+1. **Component Map**: List and describe all major UI components (e.g., Header, Input Form, Model Output Panel, Query History Section, etc.).
+2. **Page Layout Structure**: Describe the layout hierarchy, grouping, and spatial arrangement. Include ideas like sections, columns, cards, modals, tabs, etc.
+3. **User Interaction Flow**: Explain how users will interact with the interface from input to output. Include what triggers what, and how the flow is reflected in UI structure.
+4. **Responsiveness and Accessibility**: Mention layout behavior on different screen sizes, accessibility considerations (keyboard, screen reader, contrast, etc.).
+5. **Design Considerations**: Highlight design trade-offs, assumptions, or open questions (e.g., when to use modal vs new section; if query history is expandable, etc.).
+
+**Important**: If any output section (like batch results) can grow too long due to user interaction or data size, suggest UX strategies such as scrollable containers with fixed max height or pagination mechanisms to ensure layout remains manageable and user-friendly.
+
+Do NOT include any code or HTML/CSS/JS syntax. Focus only on the conceptual structure and user experience design.
+"""
+    user_prompt = f"""
+Here is the UI specification you need to analyze:
+
+### HTML_SPEC
+{html_spec}
+
+### CSS_SPEC
+{css_spec}
+
+### JS_SPEC
+{js_spec}
+
+Based on the above, generate a complete high-level design plan as described.
+"""
+    return system_prompt, user_prompt
+
+
+def html_generator_agent(html_spec: str, design: str) -> tuple[str, str]:
     system_prompt = """
 You are a professional frontend engineer. Your task is to generate a clean, semantic, and accessible HTML5 file from a given UI specification.
 
@@ -66,15 +135,22 @@ The HTML must:
 
 **DO NOT** include any CSS or JavaScript inside this HTML file — it will be handled separately.
 
-Generate the full HTML code based strictly on the given UI specification.
+Generate the full HTML code based strictly on the given UI specification and design layout description.
 """
-    
+
     user_prompt = f"""
-Below is the UI specification (HTML_SPEC) describing what the interface should contain. Generate a complete HTML5 file accordingly.
+Below is the UI specification (HTML_SPEC) describing the required components of the interface:
+
 {html_spec}
+
+In addition, here is the high-level design plan (DESIGN) describing the overall layout, component structure, and interaction flow:
+
+{design}
+
+Using both the HTML_SPEC and DESIGN, generate a full and well-structured HTML5 file that reflects both the required elements and their correct arrangement within the page layout.
 """
-    
     return system_prompt, user_prompt
+
 
 def js_injector_agent(html_code: str, js_spec: str, api_url: str, input_example: str, output_example: str) -> str:
     system_prompt = f"""
@@ -103,14 +179,15 @@ Here is the HTML file:
 {html_code}
 
 And here is the JS_SPEC describing the logic to be implemented:
-
 {js_spec}
+
+Output of ML task always is the label with highest probability.
 
 Please return the complete HTML with JavaScript inserted at the end.
 """
     return system_prompt, user_prompt
 
-def tailwind_styler_agent(html_code: str, css_spec: str) -> tuple[str, str]:
+def tailwind_styler_agent(html_code: str, css_spec: str, design: str) -> tuple[str, str]:
     system_prompt = """
 You are a UI/UX expert and Tailwind CSS specialist.
 
@@ -124,6 +201,7 @@ Your responsibilities:
 - Style form elements, buttons, input fields, and result displays so they are easy to read and interact with.
 - Add visual feedback (e.g., `hover:`, `focus:`, `disabled:` states) where appropriate.
 - Add headings, labels, buttons, and containers with clear visual hierarchy.
+- **Avoid UI blocks that shrink to fit only their content**. Use utilities like `min-w-`, `min-h-`, `flex-1`, or fixed width/height classes (`w-full`, `h-64`, etc.) to ensure layout stability.
 
 2. **Accessibility & Responsiveness**
 - Use appropriate colors, contrast, and sizes for accessibility.
@@ -136,22 +214,40 @@ Your responsibilities:
 - Inject Tailwind utility classes into `class=""` attributes.
 - Make sure to include the Tailwind CDN link in the <head> of the HTML.
 
+4. **Color Palette Consistency**
+- Choose and stick to a single Tailwind color family (e.g., blue, emerald, amber, slate...) for primary UI components such as buttons, borders, highlights, and headings.
+- Apply different shades (e.g., `blue-100`, `blue-500`, `blue-700`) from that color family across the interface for visual hierarchy and contrast.
+- Do not mix multiple unrelated color families (e.g., don’t combine blue with red or green).
+- Ensure text remains readable on colored backgrounds using proper contrast (e.g., `text-white` on `bg-blue-600`).
+
 Return the full updated HTML file with Tailwind classes applied directly to elements.
 """
+
 
     user_prompt = f"""
 Here is the HTML file:
 {html_code}
 
-And here is the CSS_SPEC describing the desired appearance:
-
+Here is the CSS_SPEC describing the desired appearance:
 {css_spec}
 
-Please return the complete HTML file with Tailwind classes added directly in the HTML elements.
-Make sure to include the Tailwind CDN link in the <head>.
-"""
+And here is the high-level DESIGN document that explains the layout structure and component roles:
+{design}
 
-    return system_prompt.strip(), user_prompt.strip()
+Please use both the CSS_SPEC and DESIGN document to apply appropriate Tailwind classes for layout, appearance, and responsiveness.
+
+**Important**: Some containers or cards in the interface (such as the input box, result section, or history panel) may shrink too much if the content is small. Prevent this behavior by using appropriate Tailwind classes to maintain a consistent and readable layout. Use `min-width`, `min-height`, or `flex-grow` utilities to avoid awkward collapsing.
+**Important**: If any output section (like batch results) can grow too long due to user interaction or data size, suggest UX strategies such as scrollable containers with fixed max height or pagination mechanisms to ensure layout remains manageable, consistency and user-friendly.
+
+Make sure the final HTML file includes:
+- Tailwind classes added into each relevant `class=""` attribute
+- Visual hierarchy, spacing, layout, and interaction states per CSS_SPEC
+- The Tailwind CDN link added inside the <head> section
+- Strictly no external or internal <style> blocks
+"""
+    return system_prompt, user_prompt
+
+
 
 def extract_specs(output):
     html_marker = "HTML_SPEC"
@@ -193,18 +289,22 @@ def generate_fe(task_path:str) -> None:
     with open(task_path, 'r', encoding='utf-8') as f:
         task_info = yaml.safe_load(f)
     
-    system_prompt, user_prompt = receptionist_agent(str(task_info))
+    system_prompt, user_prompt = specification_agent(str(task_info))
     res = graph.invoke(
         {"messages": [("system", system_prompt), ("user", user_prompt)]},
         {"configurable": {"system_prompt": system_prompt}},
     )
     
     html_spec, css_spec, js_spec = extract_specs(str(res["messages"][-1].content).strip())
-    print(html_spec)
-    print(css_spec)
-    print(js_spec)
+    
+    system_prompt, user_prompt = design_agent(html_spec, css_spec, js_spec)
+    design_res = graph.invoke(
+        {"messages": [("system", system_prompt), ("user", user_prompt)]},
+        {"configurable": {"system_prompt": system_prompt}},
+    )
+    design = str(design_res["messages"][-1].content).strip()
 
-    html_system, html_user = html_generator_agent(html_spec)
+    html_system, html_user = html_generator_agent(html_spec, design)
     html_res = graph.invoke(
         {"messages": [("system", html_system), ("user", html_user)]},
         {"configurable": {"system_prompt": html_system}},
@@ -215,8 +315,6 @@ def generate_fe(task_path:str) -> None:
     input_example, output_example = get_model_output(task_path)
     
     js_system, js_user = js_injector_agent(html_code, js_spec, api_url, input_example, output_example)
-    print("JS System", js_system)
-    print("JS User", js_user)
     js_res = graph.invoke(
         {"messages": [("system", js_system), ("user", js_user)]},
         {"configurable": {"system_prompt": js_system}},
@@ -224,7 +322,7 @@ def generate_fe(task_path:str) -> None:
     html_with_js = str(js_res["messages"][-1].content).strip()
 
 
-    css_system, css_user = tailwind_styler_agent(html_with_js, css_spec)
+    css_system, css_user = tailwind_styler_agent(html_with_js, css_spec, design)
     css_res = graph.invoke(
         {"messages": [("system", css_system), ("user", css_user)]},
         {"configurable": {"system_prompt": css_system}},
@@ -233,7 +331,7 @@ def generate_fe(task_path:str) -> None:
 
 
     with open("tests/integration_tests/generated_ui.html", "w", encoding="utf-8") as f:
-        f.write(final_html)
+        f.write(final_html.replace("```html", "").replace("```", ""))
     print("Saved to file tests/integration_tests/generated_ui.html")
 
     project_description = extract_description(task_path)
@@ -246,4 +344,4 @@ def generate_fe(task_path:str) -> None:
         print("Saved to file tests/integration_tests/fixed_generated_ui.html")
 
 if __name__ == "__main__":
-    generate_fe("src/react_agent/task (1).yaml")
+    generate_fe("src/react_agent/task (3).yaml")
